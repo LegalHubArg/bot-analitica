@@ -269,11 +269,13 @@ class Analyzer:
 
             if tool_calls:
                 messages.append(response_message)
+                used_weather = False
                 for tool_call in tool_calls:
                     function_name = tool_call.function.name
                     function_args = json.loads(tool_call.function.arguments)
                     
                     if function_name == "get_weather":
+                        used_weather = True
                         function_response = self.get_weather(location=function_args.get("location"))
                         messages.append({
                             "tool_call_id": tool_call.id,
@@ -288,6 +290,10 @@ class Analyzer:
                     messages=messages,
                 )
                 answer = second_response.choices[0].message.content
+                
+                # Do not show document sources if the weather agent was used
+                if used_weather:
+                    source_files = set()
             else:
                 answer = response_message.content
             
