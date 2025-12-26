@@ -1,0 +1,10 @@
+.env
+service_account.json
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.gcloudignore
+.dockerignore
+Dockerfile
+deploy_guide.md
