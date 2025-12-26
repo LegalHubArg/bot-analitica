@@ -1,6 +1,8 @@
 import os
 import io
 import pandas as pd
+import requests
+import json
 from openai import OpenAI
 from dotenv import load_dotenv
 from vector_store import VectorStore
@@ -51,6 +53,23 @@ class Analyzer:
             chunks.append(text[start:end])
             start = end - overlap
         return chunks
+
+    def get_weather(self, location):
+        """Fetches current weather using wttr.in."""
+        try:
+            # wttr.in provides a simple text or JSON interface
+            # format=3 gives back something like "Oliveros: ⛅️ +25°C"
+            url = f"https://wttr.in/{location}?format=j1"
+            response = requests.get(url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                current = data['current_condition'][0]
+                temp = current['temp_C']
+                desc = current['lang_es'][0]['value'] if 'lang_es' in current else current['weatherDesc'][0]['value']
+                return f"El clima en {location} es {desc} con una temperatura de {temp}°C."
+            return f"No pude obtener el clima para {location}."
+        except Exception as e:
+            return f"Error consultando el clima: {e}"
 
     def process_and_index_files(self, files_data):
         """
@@ -185,56 +204,93 @@ class Analyzer:
 
     def ask_bot(self, query, context=None): 
         """
-        Sends query to OpenAI using RAG if DB is available, or fallback context if provided.
+        Sends query to OpenAI using RAG and Tools (Weather Agent).
         """
         retrieved_context = ""
-        source_files = set()  # Track unique source files
+        source_files = set()
         
         if self.vector_store:
             try:
-                # RAG Flow
                 query_embedding = self.get_embedding(query)
                 results = self.vector_store.search(query_embedding, limit=5)
-                
                 context_parts = []
                 for res in results:
                     context_parts.append(f"--- Retrieved Fragment ---\n{res['content']}")
-                    # Extract filename from metadata
                     if res.get('metadata') and res['metadata'].get('filename'):
                         source_files.add(res['metadata']['filename'])
-                
                 retrieved_context = "\n\n".join(context_parts)
-                print("RAG Context Retrieved.")
             except Exception as e:
                 print(f"RAG Search failed: {e}")
-                retrieved_context = context # Fallback
-        else:
-            retrieved_context = context
-
-        if not retrieved_context:
-            return "I don't have enough information to answer that. Please ensure files are indexed."
 
         system_prompt = (
             "You are a helpful data analytics assistant. "
-            "You will receive context retrieved from a database of files (Google Drive). "
-            "Use ONLY the provided context to answer the user's questions. "
-            "If the answer is not in the context, say 'I cannot find the answer in the provided documents'. "
-            "For CSV/Excel data, analyze the provided sample rows and info. "
-            "Do NOT mention source files in your response, as they will be displayed separately."
+            "Use the provided context to answer questions about documents. "
+            "If you need to know the weather, use the 'get_weather' tool. "
+            "For Oliveros, Santa Fe, always use the 'get_weather' tool when asked. "
+            "Do NOT mention source files in your response."
         )
+
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather for a specific location",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. Oliveros, Santa Fe, Argentina",
+                            }
+                        },
+                        "required": ["location"],
+                    },
+                },
+            }
+        ]
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context:\n{retrieved_context}\n\nQuestion: {query}"}
+        ]
 
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Context:\n{retrieved_context}\n\nQuestion: {query}"}
-                ],
+                messages=messages,
+                tools=tools,
+                tool_choice="auto",
                 temperature=0.5
             )
-            answer = response.choices[0].message.content
             
-            # Return answer and sources as a dict
+            response_message = response.choices[0].message
+            tool_calls = response_message.tool_calls
+
+            if tool_calls:
+                messages.append(response_message)
+                for tool_call in tool_calls:
+                    function_name = tool_call.function.name
+                    function_args = json.loads(tool_call.function.arguments)
+                    
+                    if function_name == "get_weather":
+                        function_response = self.get_weather(location=function_args.get("location"))
+                        messages.append({
+                            "tool_call_id": tool_call.id,
+                            "role": "tool",
+                            "name": function_name,
+                            "content": function_response,
+                        })
+                
+                # Get a new response after tool execution
+                second_response = self.client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=messages,
+                )
+                answer = second_response.choices[0].message.content
+            else:
+                answer = response_message.content
+            
             return {
                 "answer": answer,
                 "sources": list(source_files) if source_files else []

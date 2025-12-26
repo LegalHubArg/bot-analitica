@@ -169,6 +169,33 @@ h1 {
     transform: translateY(0);
 }
 
+.weather-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #fbbf24;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.weather-action-btn:hover {
+    background: rgba(251, 191, 36, 0.2);
+    border-color: #fbbf24;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2);
+}
+
+.weather-action-btn:active {
+    transform: translateY(0);
+}
+
 /* Chat Area */
 #chat-container {
     flex: 1;

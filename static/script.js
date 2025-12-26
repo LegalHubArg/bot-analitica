@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
     const refreshBtn = document.getElementById('refresh-btn');
+    const weatherBtn = document.getElementById('weather-btn');
 
     // Bot SVG Icon
     const BOT_ICON = `\u003csvg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"\u003e\u003cpath d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z"/\u003e\u003cpath d="m8 22-1-11.2c-.1-1.1.6-2 1.6-2.2l5-1c.9-.2 1.8.5 1.9 1.4l.7 8"/\u003e\u003cpath d="M8 11h8"/\u003e\u003cpath d="M8 22h8"/\u003e\u003c/svg\u003e`;
@@ -151,6 +152,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     refreshBtn.addEventListener('click', refreshContext);
+
+    weatherBtn.addEventListener('click', () => {
+        sendMessage("Consulta el clima actual en Oliveros, Santa Fe y dime la temperatura y estado del cielo.");
+    });
 
     // Add CSS for spin animation dynamically
     const style = document.createElement('style');
