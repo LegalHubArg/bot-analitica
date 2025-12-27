@@ -17,10 +17,23 @@ class WineChunk(Base):
 
 class VectorStore:
     def __init__(self):
-        # Expecting DATABASE_URL env var
-        db_url = os.getenv("DATABASE_URL")
-        if not db_url:
-            raise ValueError("DATABASE_URL environment variable is not set")
+        # Prefer individual env vars for safer special char handling, fallback to DATABASE_URL
+        db_user = os.getenv("DB_USER")
+        db_pass = os.getenv("DB_PASS")
+        db_name = os.getenv("DB_NAME")
+        db_host = os.getenv("DB_HOST")
+        
+        if db_user and db_pass and db_name and db_host:
+            from urllib.parse import quote_plus
+            # Encode password to handle special chars like '!'
+            encoded_pass = quote_plus(db_pass)
+            db_url = f"postgresql+psycopg2://{db_user}:{encoded_pass}@/{db_name}?host={db_host}"
+            print(f"Using constructed DATABASE_URL with user '{db_user}' and host '{db_host}'")
+        else:
+            db_url = os.getenv("DATABASE_URL")
+            if not db_url:
+                raise ValueError("DATABASE_URL or (DB_USER, DB_PASS, DB_NAME, DB_HOST) must be set")
+            print("Using provided DATABASE_URL environment variable.")
 
         self.engine = create_engine(db_url)
         self.Session = sessionmaker(bind=self.engine)

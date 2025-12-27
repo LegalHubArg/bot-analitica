@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.2-db-debug"
+APP_VERSION = "1.2.3-final-fix"
 
 app = Flask(__name__)
 
