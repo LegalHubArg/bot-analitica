@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.3-final-fix"
+APP_VERSION = "1.2.4-metadata-fix"
 
 app = Flask(__name__)
 

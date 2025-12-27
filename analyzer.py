@@ -183,19 +183,12 @@ class Analyzer:
                     # Generate embedding
                     embedding = self.get_embedding(chunk)
                     
+                    # Full structure population according to wine_schema.json
+                    metadata = self._build_wine_metadata(name, modified_at, file.get('webViewLink', ''))
+                    
                     documents_to_add.append({
                         'embedding_text': f"Vino/Documento: {name}\nContenido: {chunk}",
-                        'metadata': {
-                            'identificacion': {
-                                'nombre': name,
-                                'vino_id': name.split('.')[0]
-                            },
-                            'documental': {
-                                'fuente_nombre': name, 
-                                'fecha_ingesta': modified_at,
-                                'tipo_chunk': 'fragmento_texto'
-                            }
-                        },
+                        'metadata': metadata,
                         'embedding': embedding
                     })
 
@@ -209,6 +202,68 @@ class Analyzer:
             return f"Successfully indexed {len(documents_to_add)} chunks from {len(files_data)} files."
         else:
             return "No content found to index."
+
+    def _build_wine_metadata(self, filename, modified_at, url=""):
+        """
+        Builds a structured metadata object following the wine_schema.json.
+        """
+        return {
+            "identificacion": {
+                "vino_id": filename.split('.')[0],
+                "nombre": filename,
+                "bodega": "Bodega Desconocida",
+                "añada": None,
+                "sku": None,
+                "url_ficha": url
+            },
+            "origen": {
+                "pais": "Argentina",
+                "region": None,
+                "sub_region": None,
+                "apelacion": None,
+                "vinedo": None,
+                "altitud_msnm": None
+            },
+            "enologia": {
+                "varietales": [],
+                "alcohol_vol": None,
+                "ph": None,
+                "acidez_total_gL": None,
+                "azucar_residual_gL": None,
+                "crianza": None,
+                "potencial_guarda_años": None
+            },
+            "perfil_sensorial": {
+                "vista": None,
+                "nariz": [],
+                "boca": None,
+                "intensidad": None,
+                "complejidad": None
+            },
+            "maridaje": {
+                "platos_recomendados": [],
+                "tipo_cocina": []
+            },
+            "servicio": {
+                "temperatura_ideal_c": None,
+                "decantacion_necesaria": False,
+                "tiempo_decantacion_min": 0,
+                "cristaleria_sugerida": None
+            },
+            "comercial": {
+                "rango_precio": None,
+                "disponibilidad": True,
+                "puntuaciones": [],
+                "canal_venta": []
+            },
+            "documental": {
+                "fuente_nombre": filename,
+                "fecha_ingesta": modified_at,
+                "version_esquema": "1.0",
+                "tipo_chunk": "fragmento_texto",
+                "idioma": "es"
+            }
+        }
 
     def ask_bot(self, query, context=None): 
         """
