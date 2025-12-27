@@ -16,6 +16,7 @@ class Analyzer:
         if not self.api_key:
             print("Warning: OPENAI_API_KEY not found in .env")
         self.client = OpenAI(api_key=self.api_key)
+        self.init_error = None
         
         # Initialize Vector Store if DB_URL is present, else None
         try:
@@ -25,6 +26,7 @@ class Analyzer:
             self.vector_store.init_db()
             print("Vector Store initialized successfully!")
         except Exception as e:
+            self.init_error = str(e)
             print(f"ERROR: Vector Store initialization failed!")
             print(f"Error type: {type(e).__name__}")
             print(f"Error message: {str(e)}")

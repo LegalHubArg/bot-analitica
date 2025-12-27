@@ -126,6 +126,7 @@ def debug_db():
     if not analyzer.vector_store:
         debug_info["status"] = "error"
         debug_info["message"] = "VectorStore not initialized (likely DB connection or init_db failed)"
+        debug_info["init_error"] = getattr(analyzer, 'init_error', 'No error captured')
         return jsonify(debug_info)
     
     try:
