@@ -106,6 +106,30 @@ def ask():
     result = analyzer.ask_bot(query)
     return jsonify(result)  # Now returns {"answer": "...", "sources": [...]}
 
+@app.route('/api/debug/db')
+def debug_db():
+    if not analyzer or not analyzer.vector_store:
+        return jsonify({"status": "error", "message": "Analyzer or VectorStore not initialized"})
+    
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(analyzer.vector_store.engine)
+        tables = inspector.get_table_names()
+        
+        db_url_masked = os.getenv("DATABASE_URL", "NOT SET")
+        if "@" in db_url_masked:
+             prefix, rest = db_url_masked.split("@", 1)
+             db_url_masked = f"{prefix.split(':')[0]}@***{rest}"
+
+        return jsonify({
+            "status": "ok",
+            "tables": tables,
+            "database_url_masked": db_url_masked,
+            "engine_dialect": str(analyzer.vector_store.engine.dialect.name)
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
 # Pre-initialize components and tables
 init_bot()
 

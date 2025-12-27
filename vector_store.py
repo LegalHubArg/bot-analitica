@@ -27,12 +27,20 @@ class VectorStore:
 
     def init_db(self):
         """Creates the vector extension and tables if they don't exist."""
-        with self.engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-            conn.commit()
-        
-        Base.metadata.create_all(self.engine)
-        print("Database initialized (extension + specialized wine_chunks table).")
+        print(f"Connecting to database to initialize tables... (Dialect: {self.engine.dialect.name})")
+        try:
+            with self.engine.connect() as conn:
+                print("Enabling pgvector extension if not exists...")
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                conn.commit()
+                print("Extension enabled.")
+            
+            print(f"Creating tables for models defined in Base (including '{WineChunk.__tablename__}')...")
+            Base.metadata.create_all(self.engine)
+            print("Database initialized (extension + specialized wine_chunks table).")
+        except Exception as e:
+            print(f"CRITICAL ERROR in init_db: {str(e)}")
+            raise e
 
     def clear_documents(self):
         """Clears all wine chunks from the store."""
