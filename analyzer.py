@@ -182,11 +182,17 @@ class Analyzer:
                     embedding = self.get_embedding(chunk)
                     
                     documents_to_add.append({
-                        'content': f"File: {name}\nContent: {chunk}",
+                        'embedding_text': f"Vino/Documento: {name}\nContenido: {chunk}",
                         'metadata': {
-                            'filename': name, 
-                            'type': mime,
-                            'modified_at': modified_at
+                            'identificacion': {
+                                'nombre': name,
+                                'vino_id': name.split('.')[0]
+                            },
+                            'documental': {
+                                'fuente_nombre': name, 
+                                'fecha_ingesta': modified_at,
+                                'tipo_chunk': 'fragmento_texto'
+                            }
                         },
                         'embedding': embedding
                     })
@@ -215,9 +221,9 @@ class Analyzer:
                 results = self.vector_store.search(query_embedding, limit=5)
                 context_parts = []
                 for res in results:
-                    context_parts.append(f"--- Retrieved Fragment ---\n{res['content']}")
-                    if res.get('metadata') and res['metadata'].get('filename'):
-                        source_files.add(res['metadata']['filename'])
+                    context_parts.append(f"--- Ficha Técnica / Fragmento ---\n{res['embedding_text']}")
+                    if res.get('metadata') and res['metadata'].get('documental'):
+                        source_files.add(res['metadata']['documental'].get('fuente_nombre'))
                 retrieved_context = "\n\n".join(context_parts)
             except Exception as e:
                 print(f"RAG Search failed: {e}")

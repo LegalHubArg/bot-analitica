@@ -1,0 +1,93 @@
+{
+    "wine_vector_schema": {
+        "embedding_text": "Nombre: Catena Zapata Malbec Argentino. Bodega: Catena Zapata. Varietal: 100% Malbec. Origen: Mendoza, Argentina. Notas: Un vino de gran intensidad con aromas a frutas negras maduras, violetas y especias. En boca es elegante, con taninos sedosos y un final persistente. Crianza: 18 meses en roble francés.",
+        "metadata": {
+            "identificacion": {
+                "vino_id": "CZ-MAL-ARG-2021",
+                "nombre": "Malbec Argentino",
+                "bodega": "Catena Zapata",
+                "añada": 2021,
+                "sku": "7790123456789",
+                "url_ficha": "https://catenazapata.com/fichas/malbec-argentino-2021.pdf"
+            },
+            "origen": {
+                "pais": "Argentina",
+                "region": "Mendoza",
+                "sub_region": "Valle de Uco",
+                "apelacion": "Gualtallary / Altamira",
+                "vinedo": "Adrianna & Nicasia",
+                "altitud_msnm": 1450
+            },
+            "enologia": {
+                "varietales": [
+                    {
+                        "cepa": "Malbec",
+                        "porcentaje": 100
+                    }
+                ],
+                "alcohol_vol": 14.5,
+                "ph": 3.6,
+                "acidez_total_gL": 5.8,
+                "azucar_residual_gL": 1.8,
+                "crianza": "18 meses en barricas de roble francés (50% nuevas)",
+                "potencial_guarda_años": 15
+            },
+            "perfil_sensorial": {
+                "vista": "Rojo violáceo profundo, casi negro.",
+                "nariz": [
+                    "Moras",
+                    "Violetas",
+                    "Tabaco",
+                    "Vainilla"
+                ],
+                "boca": "Cuerpo completo, taninos aterciopelados, acidez equilibrada.",
+                "intensidad": "Alta",
+                "complejidad": "Muy Complejo"
+            },
+            "maridaje": {
+                "platos_recomendados": [
+                    "Ojo de bife",
+                    "Cordero patagónico",
+                    "Pastas con salsas fuertes"
+                ],
+                "tipo_cocina": [
+                    "Asado",
+                    "Gourmet",
+                    "Carnes Rojas"
+                ]
+            },
+            "servicio": {
+                "temperatura_ideal_c": 18,
+                "decantacion_necesaria": true,
+                "tiempo_decantacion_min": 45,
+                "cristaleria_sugerida": "Copa tipo Bordeaux"
+            },
+            "comercial": {
+                "rango_precio": "Icono / Ultra Premium",
+                "disponibilidad": "Limitada",
+                "puntuaciones": [
+                    {
+                        "critico": "Robert Parker",
+                        "puntos": 98
+                    },
+                    {
+                        "critico": "James Suckling",
+                        "puntos": 99
+                    }
+                ],
+                "canal_venta": [
+                    "Vinotecas",
+                    "Exportación",
+                    "Directo Bodega"
+                ]
+            },
+            "documental": {
+                "fuente_nombre": "ficha_tecnica_oficial_v2.pdf",
+                "fecha_ingesta": "2025-12-27T10:00:00Z",
+                "version_esquema": "1.0",
+                "tipo_chunk": "ficha_completa",
+                "idioma": "es"
+            }
+        }
+    }
+}
