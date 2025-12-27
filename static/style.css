@@ -127,6 +127,17 @@ h1 {
     font-weight: 300;
 }
 
+.version-tag {
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    padding: 2px 8px;
+    border-radius: 8px;
+    color: var(--secondary-text);
+    font-family: monospace;
+    margin-left: 4px;
+}
+
 .icon-btn {
     background: none;
     border: none;

@@ -7,6 +7,8 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
+APP_VERSION = "1.2.0-wine-specialization"
+
 app = Flask(__name__)
 
 # Initialize Bot Components
@@ -86,7 +88,7 @@ def load_drive_context():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', version=APP_VERSION)
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_context():
@@ -123,6 +125,7 @@ def debug_db():
 
         return jsonify({
             "status": "ok",
+            "version": APP_VERSION,
             "tables": tables,
             "database_url_masked": db_url_masked,
             "engine_dialect": str(analyzer.vector_store.engine.dialect.name)
