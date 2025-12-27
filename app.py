@@ -106,6 +106,9 @@ def ask():
     result = analyzer.ask_bot(query)
     return jsonify(result)  # Now returns {"answer": "...", "sources": [...]}
 
+# Pre-initialize components and tables
+init_bot()
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(debug=True, host='0.0.0.0', port=port)
