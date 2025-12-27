@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.1-fix-startup"
+APP_VERSION = "1.2.2-db-debug"
 
 app = Flask(__name__)
 
@@ -17,20 +17,19 @@ analyzer = None
 
 def init_bot():
     global drive, analyzer
-    if drive and analyzer:
-        return True
     
-    print("--- Initializing Bot Components ---")
-    try:
-        drive = DriveConnector()
-    except Exception as e:
-        print(f"Error connecting to Drive: {e}")
-        return False
+    print("--- Initializing Bot Components (Resilient Mode) ---")
+    
+    if not drive:
+        try:
+            drive = DriveConnector()
+        except Exception as e:
+            print(f"Drive initialization FAILED: {e}")
 
-    analyzer = Analyzer()
-    if not analyzer.api_key:
-        print("Error: OPENAI_API_KEY not set.")
-        return False
+    if not analyzer:
+        analyzer = Analyzer()
+        if not analyzer.api_key:
+            print("Warning: OPENAI_API_KEY not set.")
     
     return True
 
@@ -110,8 +109,24 @@ def ask():
 
 @app.route('/api/debug/db')
 def debug_db():
-    if not analyzer or not analyzer.vector_store:
-        return jsonify({"status": "error", "message": "Analyzer or VectorStore not initialized"})
+    init_bot() # Force init attempt
+    
+    debug_info = {
+        "status": "pending",
+        "version": APP_VERSION,
+        "drive_initialized": drive is not None,
+        "analyzer_initialized": analyzer is not None,
+    }
+
+    if not analyzer:
+        debug_info["status"] = "error"
+        debug_info["message"] = "Analyzer not initialized (check OpenAI key)"
+        return jsonify(debug_info)
+
+    if not analyzer.vector_store:
+        debug_info["status"] = "error"
+        debug_info["message"] = "VectorStore not initialized (likely DB connection or init_db failed)"
+        return jsonify(debug_info)
     
     try:
         from sqlalchemy import inspect
@@ -123,15 +138,16 @@ def debug_db():
              prefix, rest = db_url_masked.split("@", 1)
              db_url_masked = f"{prefix.split(':')[0]}@***{rest}"
 
-        return jsonify({
+        debug_info.update({
             "status": "ok",
-            "version": APP_VERSION,
             "tables": tables,
             "database_url_masked": db_url_masked,
             "engine_dialect": str(analyzer.vector_store.engine.dialect.name)
         })
+        return jsonify(debug_info)
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        debug_info.update({"status": "error", "message": str(e)})
+        return jsonify(debug_info)
 
 # Pre-initialize components and tables safely during boot
 try:
