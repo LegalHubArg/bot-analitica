@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.0-wine-specialization"
+APP_VERSION = "1.2.1-fix-startup"
 
 app = Flask(__name__)
 
@@ -133,8 +133,13 @@ def debug_db():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
 
-# Pre-initialize components and tables
-init_bot()
+# Pre-initialize components and tables safely during boot
+try:
+    print(f"--- STARTING APP VERSION {APP_VERSION} ---")
+    init_bot()
+except Exception as e:
+    print(f"--- WARNING: Pre-initialization failed during boot. Error: {e} ---")
+    print("--- The app will attempt to initialize again on the first request. ---")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
