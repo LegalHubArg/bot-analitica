@@ -111,103 +111,98 @@ class Analyzer:
         
         print(f"Processing {len(files_to_process_names)} new/modified files, removed {len(files_to_delete)} files...")
 
-        documents_to_add = []
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        import time
 
-        print(f"Processing {len(files_data)} files...")
-        for name in files_to_process_names:
+        print(f"Starting parallel processing of {len(files_to_process_names)} files...")
+        start_time = time.time()
+
+        def _worker(name):
             file = drive_files_map[name]
-            # name = file.get('name') # already have name
             content = file.get('content')
             mime = file.get('mimeType')
             modified_at = file.get('modifiedTime')
             
             if not content:
-                continue
+                return []
 
-            text_content = ""
             try:
+                text_content = ""
+                # --- Text Extraction Logic ---
                 if 'csv' in mime or name.endswith('.csv'):
-                    try:
-                        df = pd.read_csv(io.BytesIO(content))
-                        # For CSVs, we treat the summary as one rich chunk
-                        text_content = f"CSV File: {name}\nColumns: {list(df.columns)}\nInfo:\n{df.info(buf=io.StringIO())}\n\nSample Data (First 50 rows):\n{df.head(50).to_csv(index=False)}"
-                    except Exception as e:
-                        print(f"Error reading CSV {name}: {e}")
-                        continue
+                    df = pd.read_csv(io.BytesIO(content))
+                    text_content = f"CSV File: {name}\nColumns: {list(df.columns)}\nInfo:\n{df.info(buf=io.StringIO())}\n\nSample Data:\n{df.head(50).to_csv(index=False)}"
                 elif 'sheet' in mime or name.endswith('.xlsx') or name.endswith('.xls'):
-                    try:
-                        df = pd.read_excel(io.BytesIO(content))
-                        text_content = f"Excel File: {name}\nColumns: {list(df.columns)}\nInfo:\n{df.info(buf=io.StringIO())}\n\nSample Data (First 50 rows):\n{df.head(50).to_csv(index=False)}"
-                    except Exception as e:
-                        print(f"Error reading Excel {name}: {e}")
-                        continue
+                    df = pd.read_excel(io.BytesIO(content))
+                    text_content = f"Excel File: {name}\nColumns: {list(df.columns)}\nInfo:\n{df.info(buf=io.StringIO())}\n\nSample Data:\n{df.head(50).to_csv(index=False)}"
                 elif 'pdf' in mime or name.endswith('.pdf'):
-                    try:
-                        pdf_reader = PdfReader(io.BytesIO(content))
-                        pdf_text_parts = []
-                        for page_num, page in enumerate(pdf_reader.pages):
-                            page_text = page.extract_text()
-                            if page_text:
-                                pdf_text_parts.append(f"Page {page_num + 1}:\n{page_text}")
-                        text_content = f"PDF File: {name}\n\n" + "\n\n".join(pdf_text_parts)
-                    except Exception as e:
-                        print(f"Error reading PDF {name}: {e}")
-                        continue
+                    pdf_reader = PdfReader(io.BytesIO(content))
+                    pdf_text_parts = []
+                    for page_num, page in enumerate(pdf_reader.pages):
+                        page_text = page.extract_text()
+                        if page_text:
+                            pdf_text_parts.append(f"Page {page_num + 1}:\n{page_text}")
+                    text_content = f"PDF File: {name}\n\n" + "\n\n".join(pdf_text_parts)
                 elif 'text' in mime or name.endswith('.txt') or name.endswith('.md') or mime == 'application/vnd.google-apps.document':
-                     # Note: Google Docs might need implicit conversion if exportFormat wasn't handled in drive_connector. 
-                     # Assuming drive_connector downloads as text/plain or relevant format.
                     try:
                         text_content = content.decode('utf-8', errors='ignore')
                     except AttributeError:
                         text_content = str(content)
                 else:
-                    # Generic text attempt
-                    try:
-                         text_content = content.decode('utf-8', errors='ignore')
-                    except:
-                         print(f"Skipping unsupported file: {name}")
-                         continue
+                    text_content = content.decode('utf-8', errors='ignore')
 
-                # Sanitize text to remove NUL characters
                 text_content = self.sanitize_text(text_content)
                 
-                # --- NEW: Extract intelligent metadata from document content ---
-                print(f"Extracting technical wine features for {name}...")
+                # --- Metadata Extraction (LLM) ---
+                t0 = time.time()
+                print(f"DEBUG: Starting LLM extraction for {name}...")
                 extracted_metadata = self._extract_wine_features(text_content)
-                # ----------------------------------------------------------------
+                print(f"DEBUG: LLM extraction for {name} took {time.time()-t0:.2f}s")
                 
-                # Batch chunks
+                # --- Chunking and Preparation ---
+                chunks_list = []
                 chunks = self.chunk_text(text_content)
                 for chunk in chunks:
-                    if not chunk.strip(): 
-                        continue
-                    
-                    # Sanitize chunk as well
+                    if not chunk.strip(): continue
                     chunk = self.sanitize_text(chunk)
-                    
-                    # Generate embedding
                     embedding = self.get_embedding(chunk)
-                    
-                    # Combine extracted metadata with documental info
                     metadata = self._build_wine_metadata(name, modified_at, file.get('webViewLink', ''), extracted_metadata)
                     
-                    documents_to_add.append({
+                    chunks_list.append({
                         'embedding_text': f"Vino/Documento: {name}\nContenido: {chunk}",
                         'metadata': metadata,
                         'embedding': embedding
                     })
+                return chunks_list
 
             except Exception as e:
-                print(f"Error processing {name}: {e}")
+                print(f"CRITICAL ERROR processing {name}: {e}")
+                import traceback
+                traceback.print_exc()
+                return []
 
-        # Bulk insert
-        if documents_to_add:
-            print(f"Indexing {len(documents_to_add)} chunks...")
-            self.vector_store.add_documents(documents_to_add)
-            sample_keys = list(documents_to_add[0]['metadata'].keys()) if documents_to_add else []
-            return f"Successfully indexed {len(documents_to_add)} chunks from {len(files_to_process_names)} files. Metadata keys: {sample_keys}"
+        # Execute in parallel (max 5 workers to avoid OpenAI rate limits)
+        all_chunks = []
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            futures = {executor.submit(_worker, name): name for name in files_to_process_names}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    chunks = future.result()
+                    all_chunks.extend(chunks)
+                except Exception as e:
+                    print(f"Executor error for {name}: {e}")
+
+        total_time = time.time() - start_time
+        print(f"Parallel processing finished in {total_time:.2f}s. Total chunks: {len(all_chunks)}")
+
+        if all_chunks:
+            print(f"Indexing {len(all_chunks)} chunks in bulk...")
+            self.vector_store.add_documents(all_chunks)
+            sample_keys = list(all_chunks[0]['metadata'].keys()) if all_chunks else []
+            return f"Synchronized successfully! Processed {len(files_to_process_names)} files in {total_time:.1f}s. Total chunks: {len(all_chunks)}. Metadata keys: {sample_keys}"
         else:
-            return "No content found to index."
+            return "No changes processed or no content found."
 
     def _extract_wine_features(self, text):
         """
