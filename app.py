@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.5-force-refresh"
+APP_VERSION = "1.3.0-intelligent-extraction"
 
 app = Flask(__name__)
 

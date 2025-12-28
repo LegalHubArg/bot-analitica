@@ -171,6 +171,11 @@ class Analyzer:
                 # Sanitize text to remove NUL characters
                 text_content = self.sanitize_text(text_content)
                 
+                # --- NEW: Extract intelligent metadata from document content ---
+                print(f"Extracting technical wine features for {name}...")
+                extracted_metadata = self._extract_wine_features(text_content)
+                # ----------------------------------------------------------------
+                
                 # Batch chunks
                 chunks = self.chunk_text(text_content)
                 for chunk in chunks:
@@ -183,8 +188,8 @@ class Analyzer:
                     # Generate embedding
                     embedding = self.get_embedding(chunk)
                     
-                    # Full structure population according to wine_schema.json
-                    metadata = self._build_wine_metadata(name, modified_at, file.get('webViewLink', ''))
+                    # Combine extracted metadata with documental info
+                    metadata = self._build_wine_metadata(name, modified_at, file.get('webViewLink', ''), extracted_metadata)
                     
                     documents_to_add.append({
                         'embedding_text': f"Vino/Documento: {name}\nContenido: {chunk}",
@@ -199,71 +204,93 @@ class Analyzer:
         if documents_to_add:
             print(f"Indexing {len(documents_to_add)} chunks...")
             self.vector_store.add_documents(documents_to_add)
-            return f"Successfully indexed {len(documents_to_add)} chunks from {len(files_data)} files."
+            sample_keys = list(documents_to_add[0]['metadata'].keys()) if documents_to_add else []
+            return f"Successfully indexed {len(documents_to_add)} chunks from {len(files_to_process_names)} files. Metadata keys: {sample_keys}"
         else:
             return "No content found to index."
 
-    def _build_wine_metadata(self, filename, modified_at, url=""):
+    def _extract_wine_features(self, text):
         """
-        Builds a structured metadata object following the wine_schema.json.
+        Analyzes the text using LLM to extract technical wine features according to the schema.
         """
-        return {
+        # Truncate text if it's too long (OpenAI context limit)
+        sample_text = text[:15000] 
+
+        prompt = (
+            "Eres un experto sommelier y analista técnico de vinos. "
+            "Debes extraer los datos técnicos del siguiente texto y devolverlos en formato JSON siguiendo estrictamente esta estructura:\n"
+            "{\n"
+            "  'identificacion': { 'bodega': str, 'nombre': str, 'añada': int, 'sku': str },\n"
+            "  'origen': { 'pais': str, 'region': str, 'sub_region': str, 'apelacion': str, 'vinedo': str, 'altitud_msnm': int },\n"
+            "  'enologia': { 'varietales': [{'cepa': str, 'porcentaje': float}], 'alcohol_vol': float, 'ph': float, 'acidez_total_gL': float, 'azucar_residual_gL': float, 'crianza': str, 'potencial_guarda_años': int },\n"
+            "  'perfil_sensorial': { 'vista': str, 'nariz': [str], 'boca': str, 'intensidad': str, 'complejidad': str },\n"
+            "  'maridaje': { 'platos_recomendados': [str], 'tipo_cocina': [str] },\n"
+            "  'servicio': { 'temperatura_ideal_c': int, 'decantacion_necesaria': bool, 'tiempo_decantacion_min': int, 'cristaleria_sugerida': str },\n"
+            "  'comercial': { 'rango_precio': str, 'disponibilidad': str, 'puntuaciones': [{'critico': str, 'puntos': float}], 'canal_venta': [str] }\n"
+            "}\n"
+            "INDICACIONES IMPORTANTES:\n"
+            "1. Si no encuentras un dato, usa null para valores simples o [] para listas.\n"
+            "2. No inventes información. Solo extrae lo que esté presente.\n"
+            "3. Devuelve SOLO el JSON puro.\n"
+        )
+
+        try:
+            response = self.client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": prompt},
+                    {"role": "user", "content": f"Texto del documento:\n{sample_text}"}
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.1
+            )
+            return json.loads(response.choices[0].message.content)
+        except Exception as e:
+            print(f"Error extracting metadata with LLM: {e}")
+            return {}
+
+    def _build_wine_metadata(self, filename, modified_at, url="", extracted_data=None):
+        """
+        Merges extracted LLM data with fixed documental metadata.
+        """
+        # Base structure
+        base_metadata = {
             "identificacion": {
                 "vino_id": filename.split('.')[0],
                 "nombre": filename,
-                "bodega": "Bodega Desconocida",
+                "bodega": None,
                 "añada": None,
                 "sku": None,
                 "url_ficha": url
             },
-            "origen": {
-                "pais": "Argentina",
-                "region": None,
-                "sub_region": None,
-                "apelacion": None,
-                "vinedo": None,
-                "altitud_msnm": None
-            },
-            "enologia": {
-                "varietales": [],
-                "alcohol_vol": None,
-                "ph": None,
-                "acidez_total_gL": None,
-                "azucar_residual_gL": None,
-                "crianza": None,
-                "potencial_guarda_años": None
-            },
-            "perfil_sensorial": {
-                "vista": None,
-                "nariz": [],
-                "boca": None,
-                "intensidad": None,
-                "complejidad": None
-            },
-            "maridaje": {
-                "platos_recomendados": [],
-                "tipo_cocina": []
-            },
-            "servicio": {
-                "temperatura_ideal_c": None,
-                "decantacion_necesaria": False,
-                "tiempo_decantacion_min": 0,
-                "cristaleria_sugerida": None
-            },
-            "comercial": {
-                "rango_precio": None,
-                "disponibilidad": True,
-                "puntuaciones": [],
-                "canal_venta": []
-            },
+            "origen": { "pais": "Argentina", "region": None, "sub_region": None, "apelacion": None, "vinedo": None, "altitud_msnm": None },
+            "enologia": { "varietales": [], "alcohol_vol": None, "ph": None, "acidez_total_gL": None, "azucar_residual_gL": None, "crianza": None, "potencial_guarda_años": None },
+            "perfil_sensorial": { "vista": None, "nariz": [], "boca": None, "intensidad": None, "complejidad": None },
+            "maridaje": { "platos_recomendados": [], "tipo_cocina": [] },
+            "servicio": { "temperatura_ideal_c": None, "decantacion_necesaria": False, "tiempo_decantacion_min": 0, "cristaleria_sugerida": None },
+            "comercial": { "rango_precio": None, "disponibilidad": True, "puntuaciones": [], "canal_venta": [] },
             "documental": {
                 "fuente_nombre": filename,
                 "fecha_ingesta": modified_at,
-                "version_esquema": "1.0",
+                "version_esquema": "1.1 (LLM-Extracted)",
                 "tipo_chunk": "fragmento_texto",
                 "idioma": "es"
             }
         }
+
+        if extracted_data:
+            # Deep update for each block
+            for block in ["identificacion", "origen", "enologia", "perfil_sensorial", "maridaje", "servicio", "comercial"]:
+                if block in extracted_data and isinstance(extracted_data[block], dict):
+                    # We don't want to overwrite url_ficha or vino_id from identification if it was extracted but we have better ones
+                    if block == "identificacion":
+                        # Preserve our IDs and URL but take the rest
+                        extracted_ident = extracted_data[block]
+                        base_metadata[block].update({k: v for k, v in extracted_ident.items() if k not in ["url_ficha", "vino_id"]})
+                    else:
+                        base_metadata[block].update(extracted_data[block])
+
+        return base_metadata
 
     def ask_bot(self, query, context=None): 
         """
