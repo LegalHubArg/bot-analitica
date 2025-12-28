@@ -138,6 +138,7 @@ def debug_db():
     
     try:
         from sqlalchemy import inspect
+        session = analyzer.vector_store.Session()
         inspector = inspect(analyzer.vector_store.engine)
         tables = inspector.get_table_names()
         
@@ -146,16 +147,31 @@ def debug_db():
              prefix, rest = db_url_masked.split("@", 1)
              db_url_masked = f"{prefix.split(':')[0]}@***{rest}"
 
+        # Get a sample record to check JSON format
+        from vector_store import WineChunk
+        sample_record = session.query(WineChunk).first()
+        sample_data = None
+        if sample_record:
+            sample_data = {
+                "id": sample_record.id,
+                "embedding_text_preview": sample_record.embedding_text[:100] + "..." if sample_record.embedding_text else None,
+                "meta_data": sample_record.meta_data
+            }
+
         debug_info.update({
             "status": "ok",
             "tables": tables,
             "database_url_masked": db_url_masked,
-            "engine_dialect": str(analyzer.vector_store.engine.dialect.name)
+            "engine_dialect": str(analyzer.vector_store.engine.dialect.name),
+            "sample_record": sample_data
         })
         return jsonify(debug_info)
     except Exception as e:
         debug_info.update({"status": "error", "message": str(e)})
         return jsonify(debug_info)
+    finally:
+        if 'session' in locals() and session:
+            session.close()
 
 # Pre-initialize components and tables safely during boot
 try:
