@@ -110,6 +110,29 @@ class VectorStore:
                 'metadata': r.meta_data,
                 'distance': 0 
             } for r in results]
+    def get_unique_labels(self):
+        """Returns a list of unique wine labels based on vino_id."""
+        with self.Session() as session:
+            # We use a subquery to get distinct meta_data for each vino_id
+            # Since multiple chunks share the same metadata, we pick one per vino_id
+            from sqlalchemy import func
+            subquery = session.query(
+                func.min(WineChunk.id).label('min_id'),
+                WineChunk.meta_data['identificacion']['vino_id'].astext.label('vino_id')
+            ).group_by(
+                WineChunk.meta_data['identificacion']['vino_id'].astext
+            ).subquery()
+
+            results = session.query(WineChunk).join(
+                subquery, WineChunk.id == subquery.c.min_id
+            ).all()
+
+            return [{
+                'id': r.id,
+                'metadata': r.meta_data,
+                'embedding_text_preview': r.embedding_text[:150] if r.embedding_text else ""
+            } for r in results]
+
     def clear_all_chunks(self):
         """Deletes all records from the wine_chunks table."""
         with self.Session() as session:

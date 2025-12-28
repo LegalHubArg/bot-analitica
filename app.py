@@ -114,6 +114,16 @@ def ask():
     result = analyzer.ask_bot(query)
     return jsonify(result)  # Now returns {"answer": "...", "sources": [...]}
 
+@app.route('/api/wines')
+def get_wines():
+    if not analyzer or not analyzer.vector_store:
+        return jsonify({"error": "Database not initialized"}), 500
+    try:
+        wines = analyzer.vector_store.get_unique_labels()
+        return jsonify(wines)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/debug/db')
 def debug_db():
     init_bot() # Force init attempt

@@ -51,22 +51,70 @@
             </button>
         </header>
 
-        <main id="chat-container">
-            <div class="message bot-message">
-                <div class="avatar">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
-                        <path d="m8 22-1-11.2c-.1-1.1.6-2 1.6-2.2l5-1c.9-.2 1.8.5 1.9 1.4l.7 8" />
-                        <path d="M8 11h8" />
-                        <path d="M8 22h8" />
-                    </svg>
+        <nav class="tabs-nav">
+            <button class="tab-btn active" data-tab="chat">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="m3 21 1.9-5.7a8.5 8.5 0 1 1 3.8 3.8z" />
+                </svg>
+                Asistente
+            </button>
+            <button class="tab-btn" data-tab="explorer">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect width="18" height="18" x="3" y="3" rx="2" />
+                    <path d="M3 9h18" />
+                    <path d="M9 21V9" />
+                </svg>
+                Explorador
+            </button>
+        </nav>
+
+        <div id="main-content">
+            <main id="chat-container">
+                <div class="message bot-message">
+                    <div class="avatar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" />
+                            <path d="m8 22-1-11.2c-.1-1.1.6-2 1.6-2.2l5-1c.9-.2 1.8.5 1.9 1.4l.7 8" />
+                            <path d="M8 11h8" />
+                            <path d="M8 22h8" />
+                        </svg>
+                    </div>
+                    <div class="message-content">
+                        Bienvenido a Boty tu Bot de consulta interna de Cavas.
+                    </div>
                 </div>
-                <div class="message-content">
-                    Bienvenido a Boty tu Bot de consulta interna
+            </main>
+
+            <section id="explorer-container" class="hidden">
+                <div class="explorer-header">
+                    <h2>Catálogo de Etiquetas</h2>
+                    <div class="filters-bar">
+                        <div class="filter-group">
+                            <label>Bodega</label>
+                            <select id="filter-bodega">
+                                <option value="all">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label>Región</label>
+                            <select id="filter-region">
+                                <option value="all">Todas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group search-box">
+                            <input type="text" id="filter-search" placeholder="Buscar etiqueta...">
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </main>
+                <div id="wine-grid" class="wine-grid">
+                    <!-- Wine cards will be injected here -->
+                    <div class="loader-grid">Cargando etiquetas...</div>
+                </div>
+            </section>
+        </div>
 
         <footer class="input-area">
             <form id="chat-form">

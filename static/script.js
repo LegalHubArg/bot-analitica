@@ -146,6 +146,114 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- Tabs & Explorer Logic ---
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const chatView = document.getElementById('chat-container');
+    const explorerView = document.getElementById('explorer-container');
+    const inputArea = document.querySelector('.input-area');
+    const wineGrid = document.getElementById('wine-grid');
+
+    const filterBodega = document.getElementById('filter-bodega');
+    const filterRegion = document.getElementById('filter-region');
+    const filterSearch = document.getElementById('filter-search');
+
+    let allWines = [];
+
+    async function fetchWines() {
+        wineGrid.innerHTML = '<div class="loader-grid">Cargando catálogo...</div>';
+        try {
+            const response = await fetch('/api/wines');
+            allWines = await response.json();
+            populateFilters(allWines);
+            renderWines(allWines);
+        } catch (error) {
+            wineGrid.innerHTML = `<div class="loader-grid">Error al cargar vinos: ${error.message}</div>`;
+        }
+    }
+
+    function populateFilters(wines) {
+        const bodegas = [...new Set(wines.map(w => w.metadata.identificacion.bodega).filter(Boolean))].sort();
+        const regiones = [...new Set(wines.map(w => w.metadata.origen.region).filter(Boolean))].sort();
+
+        filterBodega.innerHTML = '<option value="all">Todas las Bodegas</option>' +
+            bodegas.map(b => `<option value="${b}">${b}</option>`).join('');
+
+        filterRegion.innerHTML = '<option value="all">Todas las Regiones</option>' +
+            regiones.map(r => `<option value="${r}">${r}</option>`).join('');
+    }
+
+    function renderWines(wines) {
+        if (wines.length === 0) {
+            wineGrid.innerHTML = '<div class="loader-grid">No se encontraron etiquetas con los filtros seleccionados.</div>';
+            return;
+        }
+
+        wineGrid.innerHTML = wines.map(w => {
+            const m = w.metadata;
+            const tags = [
+                m.origen.region,
+                m.enologia.varietales.map(v => v.cepa).join(', '),
+                m.identificacion.añada
+            ].filter(Boolean);
+
+            return `
+                <div class="wine-card">
+                    <div class="card-content">
+                        <h3>${m.identificacion.nombre || 'Sin nombre'}</h3>
+                        <div class="winery">${m.identificacion.bodega || 'Bodega desconocida'}</div>
+                        <div class="tags">
+                            ${tags.map(t => `<span class="tag">${t}</span>`).join('')}
+                        </div>
+                        <p class="preview">${w.embedding_text_preview}...</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function applyFilters() {
+        const bodega = filterBodega.value;
+        const region = filterRegion.value;
+        const search = filterSearch.value.toLowerCase();
+
+        const filtered = allWines.filter(w => {
+            const m = w.metadata;
+            const matchBodega = bodega === 'all' || m.identificacion.bodega === bodega;
+            const matchRegion = region === 'all' || m.origen.region === region;
+            const matchSearch = String(m.identificacion.nombre).toLowerCase().includes(search) ||
+                String(m.identificacion.bodega).toLowerCase().includes(search);
+
+            return matchBodega && matchRegion && matchSearch;
+        });
+
+        renderWines(filtered);
+    }
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+
+            // UI state
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (tab === 'chat') {
+                chatView.classList.remove('hidden');
+                explorerView.classList.add('hidden');
+                inputArea.classList.remove('hidden');
+            } else {
+                chatView.classList.add('hidden');
+                explorerView.classList.remove('hidden');
+                inputArea.classList.add('hidden');
+                fetchWines();
+            }
+        });
+    });
+
+    filterBodega.addEventListener('change', applyFilters);
+    filterRegion.addEventListener('change', applyFilters);
+    filterSearch.addEventListener('input', applyFilters);
+
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
         sendMessage(userInput.value);
