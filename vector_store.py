@@ -110,3 +110,10 @@ class VectorStore:
                 'metadata': r.meta_data,
                 'distance': 0 
             } for r in results]
+    def clear_all_chunks(self):
+        """Deletes all records from the wine_chunks table."""
+        with self.Session() as session:
+            num_deleted = session.query(WineChunk).delete()
+            session.commit()
+            print(f"Database cleared: {num_deleted} chunks deleted.")
+            return num_deleted

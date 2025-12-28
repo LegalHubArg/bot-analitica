@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.2.4-metadata-fix"
+APP_VERSION = "1.2.5-force-refresh"
 
 app = Flask(__name__)
 
@@ -91,8 +91,15 @@ def index():
 
 @app.route('/api/refresh', methods=['POST'])
 def refresh_context():
+    data = request.json or {}
+    msg_prefix = ""
+    if data.get('force') is True:
+        if analyzer and analyzer.vector_store:
+            num = analyzer.vector_store.clear_all_chunks()
+            msg_prefix = f"Forced refresh: {num} chunks cleared. "
+    
     msg = load_drive_context()
-    return jsonify({"message": msg})
+    return jsonify({"message": msg_prefix + msg})
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
