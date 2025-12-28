@@ -142,7 +142,17 @@ class Analyzer:
                         page_text = page.extract_text()
                         if page_text:
                             pdf_text_parts.append(f"Page {page_num + 1}:\n{page_text}")
-                    text_content = f"PDF File: {name}\n\n" + "\n\n".join(pdf_text_parts)
+                    
+                    text_content = "\n\n".join(pdf_text_parts)
+                    
+                    # --- Vision Fallback if no text extracted ---
+                    if len(text_content.strip()) < 100:
+                        print(f"DEBUG: Low text extracted from PDF {name} ({len(text_content)} chars). Attempting Vision OCR fallback...")
+                        vision_text = self._extract_text_via_vision(content)
+                        if vision_text:
+                            text_content = vision_text
+                    
+                    text_content = f"PDF File: {name}\n\n" + text_content
                 elif 'text' in mime or name.endswith('.txt') or name.endswith('.md') or mime == 'application/vnd.google-apps.document':
                     try:
                         text_content = content.decode('utf-8', errors='ignore')
@@ -203,6 +213,48 @@ class Analyzer:
             return f"Synchronized successfully! Processed {len(files_to_process_names)} files in {total_time:.1f}s. Total chunks: {len(all_chunks)}. Metadata keys: {sample_keys}"
         else:
             return "No changes processed or no content found."
+
+    def _extract_text_via_vision(self, pdf_content):
+        """
+        Converts PDF pages to images and uses OpenAI Vision to describe/extract text.
+        """
+        import base64
+        from pdf2image import convert_from_bytes
+        
+        try:
+            # Convert only first 3 pages to avoid high costs and timeouts
+            images = convert_from_bytes(pdf_content, first_page=1, last_page=3)
+            full_text = []
+
+            for i, image in enumerate(images):
+                # Convert PIL image to base64
+                import io
+                buffered = io.BytesIO()
+                image.save(buffered, format="JPEG")
+                base64_image = base64.b64encode(buffered.getvalue()).decode('utf-8')
+
+                response = self.client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": "Extract all technical wine information and text from this image page. If it's a technical sheet, capture every data point."},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
+                                }
+                            ],
+                        }
+                    ],
+                    max_tokens=1000,
+                )
+                full_text.append(f"--- Page {i+1} (OCR/Vision) ---\n{response.choices[0].message.content}")
+            
+            return "\n\n".join(full_text)
+        except Exception as e:
+            print(f"Vision OCR failed: {e}")
+            return ""
 
     def _extract_wine_features(self, text):
         """

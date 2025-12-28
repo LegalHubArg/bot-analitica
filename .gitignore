@@ -6,5 +6,4 @@ __pycache__/
 .DS_Store
 .gcloudignore
 .dockerignore
-Dockerfile
 deploy_guide.md

@@ -7,7 +7,7 @@ from analyzer import Analyzer
 # Load environment variables
 load_dotenv()
 
-APP_VERSION = "1.3.1-parallel-refresh"
+APP_VERSION = "1.3.2-vision-ocr"
 
 app = Flask(__name__)
 
